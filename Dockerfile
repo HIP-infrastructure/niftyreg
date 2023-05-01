@@ -3,8 +3,8 @@ ARG TAG
 ARG DOCKERFS_TYPE
 ARG DOCKERFS_VERSION
 ARG JUPYTERLAB_DESKTOP_VERSION
-FROM ${CI_REGISTRY_IMAGE}/<base-image:version>${TAG}
-LABEL maintainer="<maintainer@example.com>"
+FROM ${CI_REGISTRY_IMAGE}/${DOCKERFS_TYPE}:${DOCKERFS_VERSION}${TAG}
+LABEL maintainer="florian.sipp@chuv.ch"
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG CARD
@@ -20,17 +20,29 @@ WORKDIR /apps/${APP_NAME}
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \ 
-    curl -sS <app> && \
-    apt-get remove -y --purge curl && \
+    git cmake build-essential libgomp1
+
+RUN git clone https://github.com/KCL-BMEIS/niftyreg niftyreg-git
+ADD "https://api.github.com/repos/KCL-BMEIS/niftyreg/commits?sha=master&per_page=1" niftyreg_latest_commit
+
+RUN mkdir build && \
+    cd build && \
+    cmake ../niftyreg-git -Wno-dev -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j7 && \
+    make install && \
+    cd .. && \
+    rm -rf build && \
+    rm -rf niftyreg-git && \
+    apt-get remove -y --purge git cmake build-essential && \
     apt-get autoremove -y --purge && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-ENV APP_SPECIAL="<option>"
-ENV APP_CMD="</path/to/app/executable>"
-ENV PROCESS_NAME="<app_process_name>"
-ENV APP_DATA_DIR_ARRAY="<app_config_dir .app_config_dir>"
-ENV DATA_DIR_ARRAY="<app_data_dir1 app_data_dir2>"
+ENV APP_SPECIAL="terminal"
+ENV APP_CMD=""
+ENV PROCESS_NAME=""
+ENV APP_DATA_DIR_ARRAY=""
+ENV DATA_DIR_ARRAY=""
 
 HEALTHCHECK --interval=10s --timeout=10s --retries=5 --start-period=30s \
   CMD sh -c "/apps/${APP_NAME}/scripts/process-healthcheck.sh \
